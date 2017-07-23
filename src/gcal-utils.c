@@ -35,6 +35,7 @@
 
 #include <string.h>
 #include <math.h>
+#include <stdlib.h>
 
 /**
  * SECTION:gcal-utils
@@ -1229,4 +1230,66 @@ ask_recurrence_modification_type (GtkWidget      *parent,
   gtk_widget_destroy (GTK_WIDGET (dialog));
 
   return is_set;
+}
+
+/**
+ * is_workday:
+ * @day: a gint representing the day of a week (0…Sunday, 6…Saturday)
+ *
+ * Checks if a day is workday or not defined by the locale and translator.
+ *
+ * Returns: %TRUE if @source is a workday, %FALSE otherwise.
+ */
+gboolean
+is_workday (guint day)
+{
+  gchar *no_work_days;
+  gchar *locale;
+
+  if (day > 6)
+    return FALSE;
+
+  /* Let's consider Sunday (0) + Saturday (6) as the default pair of
+   * non working days, since it is the most common around the World,
+   * and so be the no_work_days string "06". Exceptions are taken into
+   * account below. */
+  no_work_days = "06";
+
+  locale = getenv ("LC_ALL");
+  if (locale == NULL || g_strcmp0 (locale, "") == 0)
+    locale = getenv ("LC_TIME");
+
+  if (locale != NULL && g_strcmp0 (locale, "") != 0)
+    {
+      GRegex *r;
+      GMatchInfo *match_info;
+      GHashTable *no_work_days_table;
+      const char *territory;
+
+      /* Parse the part referring to the Territory from the Locale */
+      r = g_regex_new ("^[a-z]+_([A-Z]+).*", G_REGEX_RAW, 0, NULL);
+      g_assert (r != NULL);
+
+      g_regex_match (r, locale, 0, &match_info);
+      if (!g_match_info_matches (match_info))
+        goto out;
+
+      territory = g_match_info_fetch (match_info, 1);
+
+      /* List of Territories with non-working-days other than Saturday and Sunday */
+      no_work_days_table = g_hash_table_new (g_str_hash, g_str_equal);
+      g_hash_table_insert (no_work_days_table, "IL", "56");
+
+      if (!g_hash_table_contains (no_work_days_table, territory))
+        goto out;
+
+      no_work_days = g_hash_table_lookup (no_work_days_table, territory);
+    }
+
+out:
+
+  while (*no_work_days)
+    if (*no_work_days++ - '0' == day) return FALSE;
+
+  return TRUE;
 }

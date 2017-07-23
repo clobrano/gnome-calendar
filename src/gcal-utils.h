@@ -143,4 +143,6 @@ gboolean        ask_recurrence_modification_type                (GtkWidget      
                                                                  ECalObjModType        *modtype,
                                                                  ESource               *source);
 
+gboolean        is_workday                                      (guint	                day);
+
 #endif // __GCAL_UTILS_H__
